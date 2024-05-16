@@ -1,8 +1,6 @@
 const Courses = require("../models/Courses");
 const Razorpay = require("razorpay");
 const User = require("../models/user");
-const Course = require("../models/Courses");
-const fs = require("fs");
 
 const razorpay = new Razorpay({
   key_id: "rzp_test_BVclXIQdCra5rg",
@@ -41,26 +39,14 @@ exports.buyCourse = async (req, res) => {
   try {
     const user = await User.findById(userId);
     if (!user) throw new Error("Invalid User Details");
-    const course = await Courses.findById(CourseId);
-    if (!course) throw new Error("Invalid Course Details");
-    // const purchageData = {
-    //   user: userId,
-    //   course: CourseId,
-    // };
-    // const uniquieIdentifier = "devPrince@5000";
-    // fs.writeFileSync(
-    //   `./utils/${uniquieIdentifier}.json`,
-    //   JSON.stringify(purchageData)
-    // );
-
+    const IdArrayJson = JSON.stringify(CourseId);
     const razoroptions = {
-      amount: course?.fees * 100,
+      amount: 10000 * 100,
       currency: "INR",
       receipt: "receipt#2",
       notes: {
-        // u_id: uniquieIdentifier,
         userId,
-        CourseId,
+        IdArrayJson,
       },
     };
     const response = await razorpay.orders.create(razoroptions);
@@ -74,25 +60,20 @@ exports.buyCourse = async (req, res) => {
 
 exports.PyementSuccess = async (req, res) => {
   const { data, payment_intent } = req.body;
-
-  // const jsonData = fs.readFileSync(`./utils/${data}.json`, "utf-8");
-  // const details = JSON.parse(jsonData);
-  // fs.unlink(`./utils/${data}.json`, (err) => {
-  //   if (err) {
-  //     console.error("Error deleting file:", err);
-  //     return;
-  //   }
-  //   console.log("File deleted successfully");
-  // });
-  // console.log(details);
+  const CourseId = JSON.parse(data?.IdArrayJson);
   try {
     const user = await User.findById(data?.userId);
-    const course = await Courses.findById(data?.CourseId);
-    user.courses.push(course?._id);
-    course.enrolled.push(user?._id);
-    await course.save();
+    await Promise.all(
+      CourseId.map(async (id) => {
+        const course = await Courses.findById(id);
+        if (!course) throw new Error(`Course with id ${id} not found`);
+        course.enrolled.push(user._id);
+        if (user.cart.includes(course?._id)) user.cart.splice(course._id);
+        user.courses.push(course._id);
+        await course.save();
+      })
+    );
     await user.save();
-    console.log("payment success");
     res.status(200).json(user);
   } catch (err) {
     res.status(400).json(err);
