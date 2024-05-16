@@ -43,22 +43,24 @@ exports.buyCourse = async (req, res) => {
     if (!user) throw new Error("Invalid User Details");
     const course = await Courses.findById(CourseId);
     if (!course) throw new Error("Invalid Course Details");
-    const purchageData = {
-      user: userId,
-      course: CourseId,
-    };
-    const uniquieIdentifier = "devPrince@5000";
-    fs.writeFileSync(
-      `./utils/${uniquieIdentifier}.json`,
-      JSON.stringify(purchageData)
-    );
+    // const purchageData = {
+    //   user: userId,
+    //   course: CourseId,
+    // };
+    // const uniquieIdentifier = "devPrince@5000";
+    // fs.writeFileSync(
+    //   `./utils/${uniquieIdentifier}.json`,
+    //   JSON.stringify(purchageData)
+    // );
 
     const razoroptions = {
       amount: course?.fees * 100,
       currency: "INR",
       receipt: "receipt#2",
       notes: {
-        u_id: uniquieIdentifier,
+        // u_id: uniquieIdentifier,
+        userId,
+        CourseId,
       },
     };
     const response = await razorpay.orders.create(razoroptions);
@@ -73,23 +75,24 @@ exports.buyCourse = async (req, res) => {
 exports.PyementSuccess = async (req, res) => {
   const { data, payment_intent } = req.body;
 
-  const jsonData = fs.readFileSync(`./utils/${data}.json`, "utf-8");
-  const details = JSON.parse(jsonData);
-  fs.unlink(`./utils/${data}.json`, (err) => {
-    if (err) {
-      console.error("Error deleting file:", err);
-      return;
-    }
-    console.log("File deleted successfully");
-  });
-  console.log(details);
+  // const jsonData = fs.readFileSync(`./utils/${data}.json`, "utf-8");
+  // const details = JSON.parse(jsonData);
+  // fs.unlink(`./utils/${data}.json`, (err) => {
+  //   if (err) {
+  //     console.error("Error deleting file:", err);
+  //     return;
+  //   }
+  //   console.log("File deleted successfully");
+  // });
+  // console.log(details);
   try {
-    const user = await User.findById(details?.user);
-    const course = await Courses.findById(details?.course);
+    const user = await User.findById(data?.userId);
+    const course = await Courses.findById(data?.CourseId);
     user.courses.push(course?._id);
     course.enrolled.push(user?._id);
     await course.save();
     await user.save();
+    console.log("payment success");
     res.status(200).json(user);
   } catch (err) {
     res.status(400).json(err);
@@ -124,7 +127,7 @@ exports.removeFromCart = async (req, res) => {
       throw new Error("Course not found in the user's cart");
     }
     user.cart.splice(courseId, 1);
-    await user.save()
+    await user.save();
     res.status(200).json(user);
   } catch (err) {
     res.status(400).json(err);
